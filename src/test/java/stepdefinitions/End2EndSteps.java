@@ -1,7 +1,8 @@
 package stepdefinitions;
 
 import apiEngine.Book;
-import apiEngine.model.EndPoints;
+import apiEngine.EndPoints;
+import apiEngine.IRestResponse;
 import apiEngine.model.requests.AddBooksRequest;
 import apiEngine.model.requests.AuthorizationRequest;
 import apiEngine.model.requests.ISBNRequest;
@@ -21,6 +22,7 @@ public class End2EndSteps {
 
     private static Response response;
     private static TokenResponse tokenResponse;
+    private static IRestResponse<UserAccountResponse> userAccountResponse;
     private static Book book;
 
     @Given("^I am an authorized user$")
@@ -28,36 +30,34 @@ public class End2EndSteps {
         System.out.println("Given I am an authorized user");
 
         AuthorizationRequest authRequest = new AuthorizationRequest("TOOLSQA-Test", "Test@@123");
-        response = EndPoints.authenticateUser(authRequest);
-        // Deserializing the Response body into tokenResponse
-        tokenResponse = response.getBody().as(TokenResponse.class);
+        tokenResponse = EndPoints.authenticateUser(authRequest).getBody();
     }
 
     @Given("^A list of books is available$")
     public void aListOfBooksIsAvailable() {
         System.out.println("Given A list of books is available");
-        response = EndPoints.getBooks();// Deserializing the Response body into Books class
-        BooksResponse booksResponse = response.getBody().as(BooksResponse.class);
-        book = booksResponse.books.get(0);
-
+        IRestResponse<BooksResponse> booksResponse = EndPoints.getBooks();
+        book = booksResponse.getBody().books.get(0);
+        /**
         System.out.println("============================================= List of Books =============================================");
-        for (int i=0; booksResponse.books.size() > i; i++) {
+        for (int i=0; booksResponse.size() > i; i++) {
             System.out.println("Title: " + booksResponse.books.get(i).title + "\nISBN: " + booksResponse.books.get(i).isbn+ "\nAuthor: " +
                     booksResponse.books.get(i).author + "\nDescription: " + booksResponse.books.get(i).description +
                     "\nPublisher: " + booksResponse.books.get(i).publisher + "\nSubTitle: " + booksResponse.books.get(i).subTitle +
                     "\n" + booksResponse.books.get(i).website + "\nNumber of Pages: " + booksResponse.books.get(i).pages + "\n");
         }
         System.out.println("=========================================================================================================");
+        **/
     }
 
     @When("^I \"([^\"]*)\" a book to my reading list$")
     public void bookToMyReadingList(String action) {
         System.out.println("When I " + action + " a book to my reading list");
-        ISBNRequest isbn = new ISBNRequest(book.isbn);
         switch (action) {
             case "add":
+                ISBNRequest isbn = new ISBNRequest(book.isbn);
                 AddBooksRequest addBooksRequest = new AddBooksRequest(USER_ID, isbn);
-                response = EndPoints.addBook(addBooksRequest, tokenResponse.token);
+                userAccountResponse = EndPoints.addBook(addBooksRequest, tokenResponse.token);
                 break;
             case "remove":
                 RemoveBooksRequest removeBookRequest = new RemoveBooksRequest(USER_ID, book.isbn);
@@ -71,21 +71,19 @@ public class End2EndSteps {
     @Then("^The books is \"([^\"]*)\"$")
     public void theBooksIs(String actionResult) {
         System.out.println("Then the book is " + actionResult);
-        UserAccountResponse userAccountResponse;
         switch (actionResult) {
             case "201":
-                Assert.assertEquals(201, response.getStatusCode());
-                userAccountResponse = response.getBody().as(UserAccountResponse.class);
-                Assert.assertEquals(USER_ID, userAccountResponse.userID);
-                Assert.assertEquals(book.isbn, userAccountResponse.books.get(0).isbn);
+                Assert.assertTrue(userAccountResponse.isSuccessful());
+                Assert.assertEquals(201, userAccountResponse.getStatusCode());
+                Assert.assertEquals(USER_ID, userAccountResponse.getBody().userID);
+                Assert.assertEquals(book.isbn, userAccountResponse.getBody().books.get(0).isbn);
+
                 break;
             case "204":
                 Assert.assertEquals(204, response.getStatusCode());
-                response = EndPoints.getUserAccount(USER_ID, tokenResponse.token);
-                Assert.assertEquals(200, response.getStatusCode());
-
-                UserAccountResponse userAccount = response.getBody().as(UserAccountResponse.class);
-                Assert.assertEquals(0, userAccount.books.size());
+                userAccountResponse = EndPoints.getUserAccount(USER_ID, tokenResponse.token);
+                Assert.assertEquals(200, userAccountResponse.getStatusCode());
+                Assert.assertEquals(0, userAccountResponse.getBody().books.size());
                 break;
             default:
                 System.out.println("Invalid Response Code");

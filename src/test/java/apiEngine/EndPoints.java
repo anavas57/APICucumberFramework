@@ -1,8 +1,11 @@
-package apiEngine.model;
+package apiEngine;
 
 import apiEngine.model.requests.AddBooksRequest;
 import apiEngine.model.requests.AuthorizationRequest;
 import apiEngine.model.requests.RemoveBooksRequest;
+import apiEngine.model.responses.BooksResponse;
+import apiEngine.model.responses.TokenResponse;
+import apiEngine.model.responses.UserAccountResponse;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -10,53 +13,45 @@ import io.restassured.specification.RequestSpecification;
 public class EndPoints {
     private static final String BASE_URL = "https://bookstore.toolsqa.com";
 
-    public static Response authenticateUser(AuthorizationRequest authRequest) {
+    public static IRestResponse<TokenResponse> authenticateUser(AuthorizationRequest authRequest) {
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-
         request.header("Content-Type", "application/json");
-        Response response = request.body(authRequest).post("/Account/v1/GenerateToken");
-        return response;
+        Response response = request.body(authRequest).post(Route.generateToken());
+        return new RestResponse<>(TokenResponse.class, response);
     }
 
-    public static Response getBooks() {
+    public static IRestResponse<BooksResponse> getBooks() {
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-
         request.header("Content-Type", "application/json");
-        Response response = request.get("/BookStore/v1/Books");
-        return response;
+        Response response = request.get(Route.books());
+        return new RestResponse<>(BooksResponse.class, response);
     }
 
-    public static Response addBook(AddBooksRequest addBooksRequest, String token) {
+    public static IRestResponse<UserAccountResponse> addBook(AddBooksRequest addBooksRequest, String token) {
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
         request.header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json");
-
-        Response response = request.body(addBooksRequest).post("/BookStore/v1/Books");
-        return response;
+        Response response = request.body(addBooksRequest).post(Route.books());
+        return new RestResponse<>(UserAccountResponse.class, response);
     }
 
     public static Response removeBook(RemoveBooksRequest removeBookRequest, String token) {
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-
         request.header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json");
-
-        Response response = request.body(removeBookRequest).delete("/BookStore/v1/Book");
-        return response;
+        return request.body(removeBookRequest).delete(Route.book());
     }
 
-    public static Response getUserAccount(String userId, String token) {
+    public static IRestResponse<UserAccountResponse> getUserAccount(String userId, String token) {
         RestAssured.baseURI = BASE_URL;
         RequestSpecification request = RestAssured.given();
-
         request.header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json");
-
-        Response response = request.get("/Account/v1/User/" + userId);
-        return response;
+        Response response = request.get(Route.userAccount(userId));
+        return new RestResponse<>(UserAccountResponse.class, response);
     }
 }
